@@ -1,0 +1,270 @@
+package com.example.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ui.components.*
+import com.example.ui.theme.*
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainIdeScreen(
+    viewModel: IdeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+) {
+    val project by viewModel.project.collectAsStateWithLifecycle()
+    val treeNodes by viewModel.treeNodes.collectAsStateWithLifecycle()
+    val debuggerState by viewModel.debuggerState.collectAsStateWithLifecycle()
+    val logcatLogs by viewModel.logcatLogs.collectAsStateWithLifecycle()
+    val isFocusMode by viewModel.isFocusMode.collectAsStateWithLifecycle()
+
+    val showNewProjectDialog by viewModel.showNewProjectDialog.collectAsStateWithLifecycle()
+    val showNewFileDialog by viewModel.showNewFileDialog.collectAsStateWithLifecycle()
+    val showSecurityDialog by viewModel.showSecurityDialog.collectAsStateWithLifecycle()
+
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+
+    val activeFile = project.files[project.activeFileId] ?: project.files.values.firstOrNull()
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                drawerContainerColor = IdeSurface
+            ) {
+                DrawerContent(
+                    project = project,
+                    treeNodes = treeNodes,
+                    onFileSelect = { fileId ->
+                        viewModel.selectFile(fileId)
+                        scope.launch { drawerState.close() }
+                    },
+                    onFolderToggle = { folderPath -> viewModel.toggleFolder(folderPath) },
+                    onDeleteNode = { node -> viewModel.deleteNode(node) },
+                    onRenameNode = { node -> viewModel.renameNode(node, node.name) },
+                    onAddFileInFolder = { folderPath -> viewModel.openNewFileDialog(folderPath) },
+                    onToggleBreakpoint = { fileId -> viewModel.toggleBreakpoint(fileId) },
+                    onNewFileClick = {
+                        viewModel.openNewFileDialog()
+                        scope.launch { drawerState.close() }
+                    },
+                    onNewProjectClick = {
+                        viewModel.openNewProjectDialog()
+                        scope.launch { drawerState.close() }
+                    },
+                    onSearchClick = {
+                        viewModel.openSecurityDialog()
+                        scope.launch { drawerState.close() }
+                    },
+                    onSecurityReportClick = {
+                        viewModel.openSecurityDialog()
+                        scope.launch { drawerState.close() }
+                    }
+                )
+            }
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                if (!isFocusMode) {
+                    TopAppBar(
+                        title = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = project.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (activeFile != null) {
+                                    Text(
+                                        text = " / ${activeFile.name}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = IdeComment
+                                    )
+                                }
+                            }
+                        },
+                        navigationIcon = {
+                            IconButton(
+                                onClick = { scope.launch { drawerState.open() } },
+                                modifier = Modifier.testTag("open_drawer_btn")
+                            ) {
+                                Icon(Icons.Default.Menu, contentDescription = "Open Drawer", tint = Color.White)
+                            }
+                        },
+                        actions = {
+                            // Run Action
+                            IconButton(
+                                onClick = { viewModel.runProject() },
+                                modifier = Modifier.testTag("run_app_btn")
+                            ) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = "Run App", tint = IdeRunGreen)
+                            }
+                            // Debug Action
+                            IconButton(
+                                onClick = { viewModel.runProject() },
+                                modifier = Modifier.testTag("debug_app_btn")
+                            ) {
+                                Icon(Icons.Default.BugReport, contentDescription = "Debug App", tint = IdeDebugRed)
+                            }
+                            // Focus Mode Toggle Action
+                            IconButton(
+                                onClick = { viewModel.toggleFocusMode() },
+                                modifier = Modifier.testTag("toggle_focus_mode_btn")
+                            ) {
+                                Icon(Icons.Default.Fullscreen, contentDescription = "Focus Mode", tint = IdePrimary)
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = IdeSurface
+                        )
+                    )
+                }
+            },
+            bottomBar = {
+                if (!isFocusMode) {
+                    Column {
+                        // Quick Symbol Strip above bottom sheets
+                        QuickSymbolBar(
+                            onSymbolClick = { symbol -> viewModel.insertSymbolAtActiveFile(symbol) },
+                            onFormatClick = { viewModel.formatActiveCode() }
+                        )
+
+                        // Resizable Bottom Sheet (Logcat & Debugger)
+                        BottomConsoleSheet(
+                            project = project,
+                            debuggerState = debuggerState,
+                            logcatLogs = logcatLogs,
+                            onClearLogs = { viewModel.clearLogs() },
+                            onResumeDebugger = { viewModel.resumeDebugger() },
+                            onStepOver = { viewModel.stepOverDebugger() },
+                            onStopDebugger = { viewModel.stopDebugger() }
+                        )
+                    }
+                }
+            },
+            containerColor = IdeBackground
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // File Tabs Bar
+                    if (!isFocusMode) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(IdeSurfaceVariant)
+                                .horizontalScroll(rememberScrollState())
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            project.files.values.forEach { file ->
+                                val isActive = file.id == project.activeFileId
+                                Surface(
+                                    onClick = { viewModel.selectFile(file.id) },
+                                    shape = RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp),
+                                    color = if (isActive) IdeBackground else Color.Transparent,
+                                    modifier = Modifier
+                                        .padding(end = 2.dp)
+                                        .minimumInteractiveComponentSize()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = file.name,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (isActive) IdePrimary else IdeComment,
+                                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                                            fontSize = 12.sp
+                                        )
+                                        if (file.isModified) {
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("•", color = IdeWarnYellow, fontSize = 12.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Active Code Editor
+                    if (activeFile != null) {
+                        CodeEditorView(
+                            file = activeFile,
+                            activeLine = if (debuggerState.currentFileId == activeFile.id) debuggerState.currentLine else null,
+                            onContentChange = { newContent ->
+                                viewModel.updateFileContent(activeFile.id, newContent)
+                            },
+                            onBreakpointToggle = { line ->
+                                viewModel.toggleBreakpoint(activeFile.id, line)
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("No File Open. Select a file from the drawer.", color = IdeComment)
+                        }
+                    }
+                }
+
+                // Focus Mode Floating Exit Button
+                if (isFocusMode) {
+                    FloatingActionButton(
+                        onClick = { viewModel.toggleFocusMode() },
+                        containerColor = IdePrimary,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(16.dp)
+                            .testTag("exit_focus_mode_btn")
+                    ) {
+                        Icon(Icons.Default.FullscreenExit, contentDescription = "Exit Focus Mode", tint = Color.White)
+                    }
+                }
+            }
+        }
+    }
+
+    // Dialogs
+    if (showNewProjectDialog) {
+        NewProjectDialog(
+            onDismiss = { viewModel.closeNewProjectDialog() },
+            onCreate = { name, pkg, template -> viewModel.createProject(name, pkg, template) }
+        )
+    }
+
+    if (showNewFileDialog) {
+        NewFileDialog(
+            onDismiss = { viewModel.closeNewFileDialog() },
+            onCreate = { fileName, extension -> viewModel.createFile(fileName, extension) }
+        )
+    }
+
+    if (showSecurityDialog) {
+        SecurityReportDialog(
+            onDismiss = { viewModel.closeSecurityDialog() }
+        )
+    }
+}

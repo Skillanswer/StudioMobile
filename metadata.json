@@ -1,0 +1,6 @@
+{
+  "name": "Android Studio Mobile",
+  "description": "On-device mobile IDE for Kotlin and Java with syntax highlighting, AST interpreter, debugger, and logcat.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
