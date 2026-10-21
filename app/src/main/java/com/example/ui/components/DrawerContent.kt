@@ -32,6 +32,7 @@ fun DrawerContent(
     onToggleBreakpoint: (String) -> Unit,
     onNewFileClick: () -> Unit,
     onNewProjectClick: () -> Unit,
+    onBuildSignClick: () -> Unit,
     onSearchClick: () -> Unit,
     onSecurityReportClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -78,7 +79,7 @@ fun DrawerContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Action Buttons Row: New File, New Project, Search, Security Audit
+            // Action Buttons Row: New File, New Project, Build & Sign, Search, Security Audit
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -106,13 +107,13 @@ fun DrawerContent(
                 }
 
                 IconButton(
-                    onClick = onSearchClick,
-                    modifier = Modifier.testTag("search_btn")
+                    onClick = onBuildSignClick,
+                    modifier = Modifier.testTag("build_sign_btn")
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = TokenFunction
+                        imageVector = Icons.Default.Archive,
+                        contentDescription = "Build APK/AAB",
+                        tint = IdePrimary
                     )
                 }
 
@@ -163,6 +164,23 @@ fun DrawerContent(
             }
 
             HorizontalDivider(color = IdeBorder, modifier = Modifier.padding(vertical = 12.dp))
+
+            // Build & Sign Quick Launch Bar
+            Surface(
+                onClick = onBuildSignClick,
+                shape = RoundedCornerShape(8.dp),
+                color = IdePrimary.copy(alpha = 0.2f),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.BuildCircle, contentDescription = null, tint = IdePrimary, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Build APK / AAB & Sign", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
 
             // Active Template Footer Badge
             Surface(

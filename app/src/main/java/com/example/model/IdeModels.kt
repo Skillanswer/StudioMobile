@@ -74,6 +74,34 @@ data class Project(
     val expandedFolderPaths: Set<String> = setOf("app", "app/src", "app/src/main", "app/src/main/java", "src")
 )
 
+enum class BuildTarget(val displayName: String, val extension: String) {
+    DEBUG_APK("Debug APK", "apk"),
+    SIGNED_RELEASE_APK("Signed Release APK", "apk"),
+    SIGNED_RELEASE_AAB("Signed Release AAB (Play Store)", "aab")
+}
+
+data class KeystoreConfig(
+    val id: String,
+    val alias: String,
+    val storePassword: String,
+    val keyPassword: String,
+    val validityYears: Int = 25,
+    val commonName: String = "Android Studio Mobile",
+    val organization: String = "Mobile IDE Developer",
+    val sha256Fingerprint: String = "SHA256: 48:9A:C3:82:19:FE:22:90:BB:11:00:1A:3C:D2:EE:90",
+    val isCreated: Boolean = true
+)
+
+data class BuildResult(
+    val isSuccess: Boolean,
+    val target: BuildTarget,
+    val fileName: String,
+    val filePath: String,
+    val fileSizeKb: Int,
+    val signatureSha256: String,
+    val logs: List<String>
+)
+
 enum class LogLevel(val label: String, val colorHex: Long) {
     VERBOSE("V", 0xFF6C707E),
     DEBUG("D", 0xFF62A8F3),

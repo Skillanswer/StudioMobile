@@ -34,6 +34,10 @@ fun MainIdeScreen(
 
     val showNewProjectDialog by viewModel.showNewProjectDialog.collectAsStateWithLifecycle()
     val showNewFileDialog by viewModel.showNewFileDialog.collectAsStateWithLifecycle()
+    val showBuildSignDialog by viewModel.showBuildSignDialog.collectAsStateWithLifecycle()
+    val showKeystoreDialog by viewModel.showKeystoreDialog.collectAsStateWithLifecycle()
+    val buildResult by viewModel.buildResult.collectAsStateWithLifecycle()
+    val activeKeystore by viewModel.activeKeystore.collectAsStateWithLifecycle()
     val showSecurityDialog by viewModel.showSecurityDialog.collectAsStateWithLifecycle()
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -65,6 +69,10 @@ fun MainIdeScreen(
                     },
                     onNewProjectClick = {
                         viewModel.openNewProjectDialog()
+                        scope.launch { drawerState.close() }
+                    },
+                    onBuildSignClick = {
+                        viewModel.openBuildSignDialog()
                         scope.launch { drawerState.close() }
                     },
                     onSearchClick = {
@@ -123,12 +131,19 @@ fun MainIdeScreen(
                             ) {
                                 Icon(Icons.Default.BugReport, contentDescription = "Debug App", tint = IdeDebugRed)
                             }
+                            // Build & Sign Action
+                            IconButton(
+                                onClick = { viewModel.openBuildSignDialog() },
+                                modifier = Modifier.testTag("top_build_sign_btn")
+                            ) {
+                                Icon(Icons.Default.Archive, contentDescription = "Build & Sign APK/AAB", tint = IdePrimary)
+                            }
                             // Focus Mode Toggle Action
                             IconButton(
                                 onClick = { viewModel.toggleFocusMode() },
                                 modifier = Modifier.testTag("toggle_focus_mode_btn")
                             ) {
-                                Icon(Icons.Default.Fullscreen, contentDescription = "Focus Mode", tint = IdePrimary)
+                                Icon(Icons.Default.Fullscreen, contentDescription = "Focus Mode", tint = Color.White)
                             }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
@@ -259,6 +274,31 @@ fun MainIdeScreen(
         NewFileDialog(
             onDismiss = { viewModel.closeNewFileDialog() },
             onCreate = { fileName, extension -> viewModel.createFile(fileName, extension) }
+        )
+    }
+
+    if (showBuildSignDialog) {
+        BuildSignDialog(
+            onDismiss = { viewModel.closeBuildSignDialog() },
+            onBuildTrigger = { target, keystore -> viewModel.triggerBuildAndSign(target, keystore) },
+            onOpenKeystoreManager = { viewModel.openKeystoreDialog() },
+            activeKeystore = activeKeystore
+        )
+    }
+
+    if (showKeystoreDialog) {
+        KeystoreManagerDialog(
+            onDismiss = { viewModel.closeKeystoreDialog() },
+            onCreateKeystore = { alias, storePass, keyPass, validity, name, org ->
+                viewModel.createKeystore(alias, storePass, keyPass, validity, name, org)
+            }
+        )
+    }
+
+    buildResult?.let { result ->
+        BuildResultDialog(
+            result = result,
+            onDismiss = { viewModel.closeBuildResultDialog() }
         )
     }
 

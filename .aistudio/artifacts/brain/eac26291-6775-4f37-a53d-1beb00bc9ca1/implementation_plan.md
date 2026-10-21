@@ -1,69 +1,80 @@
-# Collapsible File Tree Explorer (Android Studio Mobile)
+# Android Studio Mobile (ARM SoC & Low Resource Optimized)
 
-An interactive, touch-optimized, hierarchical Collapsible File Tree Explorer component for managing project folder structures in Android Studio Mobile. Integrates smooth chevron animations, 48dp touch targets, subtle vertical indentation guidelines, and an inline contextual action bar for file/folder manipulation (New File, Delete, Rename, Add Breakpoint) without visual clutter.
+A mobile-first Android Studio clone built natively with Jetpack Compose for Android smartphones. Designed for maximum efficiency on low-resource ARM SoC processors (ARMv7, ARM64, Snapdragon 400/600/700 series, MediaTek Dimensity/Helio) with lightweight RAM memory management, fast lazy syntax tokenization, battery-friendly rendering, and a clean minimalist mobile UI.
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> The user confirmed the following File Tree features during Phase 1 clarification:
-> - **Touch-Optimized Collapsible Tree**: Animated chevrons (`ExpandMore` / `ChevronRight`), subtle vertical indent guide lines, and 48dp+ interactive touch targets per folder/file node.
-> - **Hierarchical Folder Structure**: Displays nested directories (`app/`, `src/`, `main/`, `java/`, `res/`, `values/`) with automatic depth indentation.
-> - **Contextual File Actions Bar**: Selected files or folders reveal inline quick-action buttons for **New File inside Folder**, **Delete Node**, **Rename Node**, and **Toggle Breakpoint**.
-> - **Visual Minimalism**: Clean dark surfaces (`#1B1C20`), distinct file extension icons, active selection highlight, and zero clutter.
+> The user requested explicit low-resource & ARM SoC processor optimization:
+> - **ARM SoC Architecture Optimization**: Zero native binary overhead (`.so`), pure Kotlin memory management tuned for ARM NEON/Vector instructions and low-end octa-core/quad-core CPUs.
+> - **Low Resource Memory Management**:
+>   - **Lazy Line Tokenization**: Tokenizes only currently visible editor lines rather than entire 10,000-line files to keep RAM under 60 MB.
+>   - **Memory Heap Conservation**: Garbage collection (GC) friendly data structures preventing frame drops or lag spikes.
+>   - **Battery & Thermal Guard**: Pauses background execution when idle to prevent phone thermal throttling.
+> - **Essential Mobile IDE Toolset**:
+>   - Live IntelliSense Code Autocomplete popup.
+>   - Interactive Terminal Shell (`gradle assembleDebug`, `git status`, `ls`, `grep`).
+>   - Real-time Performance Profiler (ARM CPU %, RAM Heap MB, FPS meter).
+>   - Git Version Control & Branch Manager.
+>   - APK / AAB Decompiler & Asset Inspector.
+>   - Build & Sign APK / AAB with JKS Keystores.
 
 ---
 
 ## 1. Overview & Core Concept
 
-The **Collapsible File Tree Explorer** provides a true IDE folder hierarchy experience on mobile screens. It organizes complex Android projects (`:app`, `:core`, `:data`, `res/layout`, `values/strings.xml`) into collapsible directory nodes with smooth touch navigation.
+**Android Studio Mobile** delivers desktop-class mobile development capabilities while remaining blazing fast and smooth on budget and low-tier Android smartphones.
 
-### Key Features
-1. **Collapsible Directory Nodes**: Expand and collapse nested folders with rotation animations on chevron icons.
-2. **Indentation Guidelines**: Faint vertical guidelines visually connect parent folders to their child files/folders.
-3. **Contextual Node Actions Bar**: Tapping a folder or file displays an inline touch toolbar with options to:
-   - ➕ Add new file directly inside the target folder
-   - ✏️ Rename file/folder
-   - 🗑️ Delete file/folder
-   - 🔴 Toggle Debug Breakpoint
-4. **Touch Ergonomics**: All node rows enforce 48dp height to prevent accidental mis-taps on phone touchscreens.
+### Key Performance Pillars for ARM SoC
+1. **Low Memory Footprint (<60 MB RAM)**: Efficient data structures for AST parsing, token caching, and project trees ensure seamless multitasking without Android OS OOM kills.
+2. **ARM Vectorization & CPU Efficiency**: Lightweight regex tokenizer and AST interpreter optimized for ARM NEON SIMD execution without heavy native JNI dependencies.
+3. **Smooth 60 FPS Compose Rendering**: Sub-millisecond recompositions, lazy list layouts, and minimal re-draws for low-frequency mobile GPUs (Adreno, Mali).
 
 ---
 
 ## 2. User Experience & Visual Design
 
-### Visual Identity & Layout
-- **Tree Canvas**: Dark IDE sidebar canvas (`#1B1C20`) with `#2E3036` indent guidelines.
-- **Node Highlighting**:
-  - Folders: Amber/Gold folder icons (`#E58A5C`) with animated rotation chevrons.
-  - Kotlin (`.kt`): Coral/Orange icon (`#E58A5C`)
-  - Java (`.java`): Azure/Blue icon (`#62A8F3`)
-  - XML (`.xml`): Gold/Yellow icon (`#D4C95A`)
-  - JSON (`.json`): Cyan/Green icon (`#36C5D3`)
-- **Active Node Pill**: Selected file or folder receives a `#3574F0` blue tint with rounded corners.
+### Clean Ergonomics & ARM Resource Monitor
+- **Header Bar**: Project status pill (`✔ Ready` / `⚡ Building`), active file tab, Git branch indicator, and ARM SoC Resource Pill (`RAM: 42MB | CPU: 4%`).
+- **Floating Action Speed Dial Wheel**: Fast 1-tap access to Run, Debug, Build APK/AAB, Terminal, Profiler, and Search.
+- **Editor Canvas**: Monospace font with lazy-loaded line numbers, line highlight, and token coloring.
 
 ---
 
 ## 3. Technical Architecture & Component Structure
 
-### Node Hierarchy & Model Strategy
-- `FileTreeNode`: `id`, `name`, `relativePath`, `isDirectory`, `isExpanded`, `depthLevel`, `children`, `extension`, `breakpoints`.
-- `FileTreeViewModel` / `ProjectRepository`: Transforms flat project files into a nested tree structure and updates expansion/collapse state.
+### Architecture Diagram
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│               Collapsible File Tree Explorer Component                 │
+│             ARM SoC Optimized Android Studio Mobile IDE                │
 ├────────────────────────────────────────────────────────────────────────┤
-│ 📂 app/                                                        [+] [⚙]│
-│ │── 📂 src/                                                           │
-│ │   │── 📂 main/                                                       │
-│ │   │   │── 📂 java/com/example/                                       │
-│ │   │   │   │── 📄 MainActivity.kt                        [+] [✏] [🗑] │
-│ │   │   │   └── 📄 UserViewModel.kt                                   │
-│ │   │   └── 📂 res/                                                    │
-│ │   │       └── 📂 layout/                                             │
-│ │   │           └── 📄 activity_main.xml                              │
-│ │   └── 📄 AndroidManifest.xml                                         │
-│ └── 📄 build.gradle.kts                                                │
+│ ┌──────────────────────────┐  ┌──────────────────────────────────────┐ │
+│ │ Slide-Over Drawer        │  │ Header Bar (ARM RAM / CPU Meter)     │ │
+│ │  - Collapsible File Tree │  ├──────────────────────────────────────┤ │
+│ │  - Resource Inspector    │  │ Code Editor View (Compose)           │ │
+│ │  - Git Manager           │  │  - Lazy Tokenizer (<60MB RAM)        │ │
+│ └──────────────────────────┘  │  - Floating Action Speed Dial Wheel  │ │
+│                               └──────────────────────────────────────┘ │
+├────────────────────────────────────────────────────────────────────────┤
+│ Resizable Bottom Sheet (Logcat / Terminal / Profiler / Decompiler)     │
+│  - Filterable Logcat Logs                                              │
+│  - Interactive Terminal Shell ($ gradle assembleDebug, git status)     │
+│  - ARM SoC Real-Time CPU & RAM Memory Heap Monitor                     │
+│  - APK/AAB Decompiler Structure                                        │
+│  - Gradle Dependency Analyzer                                          │
+└────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                       IDE Core Engine & Services                       │
+│ ┌────────────────────────┐ ┌───────────────────┐ ┌───────────────────┐ │
+│ │ Project Repository     │ │ Lazy CodeLexer &  │ │ AstEngine &       │ │
+│ │ & Git Manager          │ │ Autocomplete      │ │ Profiler Meter    │ │
+│ └────────────────────────┘ └───────────────────┘ └───────────────────┘ │
+│ ┌───────────────────────┐ ┌───────────────────┐ ┌───────────────────┐ │
+│ │ KeystoreManager       │ │ TerminalEngine    │ │ ApkDecompiler     │ │
+│ └───────────────────────┘ └───────────────────┘ └───────────────────┘ │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -71,12 +82,17 @@ The **Collapsible File Tree Explorer** provides a true IDE folder hierarchy expe
 
 ## 4. Implementation Roadmap & Verification
 
-1. **Tree Data Model (`FileTreeNode`)**:
-   - Create recursive tree node builder in `IdeModels.kt` and `ProjectRepository.kt`.
-2. **`CollapsibleFileTree` Composable**:
-   - Build recursive node renderer with animated chevrons, vertical depth guides, and 48dp rows.
-   - Add inline contextual touch action bar for New File, Rename, Delete, Breakpoint.
-3. **Integration in `DrawerContent.kt`**:
-   - Replace flat list with `CollapsibleFileTree` in the slide-over navigation drawer.
-4. **Verification**:
-   - Run `compile_applet` to verify zero build or syntax errors.
+1. **ARM SoC Performance Engine (`ProfilerEngine.kt`)**:
+   - Real-time ARM CPU load %, RAM heap memory footprint, and rendering FPS monitor.
+2. **Lazy Tokenizer & Autocomplete (`AutocompleteEngine.kt`)**:
+   - Contextual IntelliSense suggestions with zero GC allocation overhead.
+3. **Terminal Shell Simulator (`TerminalEngine.kt`)**:
+   - Shell command runner (`gradle assembleDebug`, `git status`, `ls`, `grep`, `pwd`).
+4. **Git Branch & Version Control Manager**:
+   - Branch badge, commit dialog, and file diff viewer.
+5. **APK Decompiler & Dependency Analyzer**:
+   - Inspect APK zip structure and Gradle Version Catalog.
+6. **Floating Action Speed Dial Wheel**:
+   - Floating action wheel for instant touch access.
+7. **Verification**:
+   - Execute `compile_applet` to confirm zero build or runtime errors.

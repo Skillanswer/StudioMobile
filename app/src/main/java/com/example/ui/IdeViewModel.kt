@@ -3,6 +3,7 @@ package com.example.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.interpreter.AstEngine
+import com.example.interpreter.KeystoreManager
 import com.example.model.*
 import com.example.repository.ProjectRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +38,18 @@ class IdeViewModel : ViewModel() {
 
     private val _showNewFileDialog = MutableStateFlow(false)
     val showNewFileDialog: StateFlow<Boolean> = _showNewFileDialog.asStateFlow()
+
+    private val _showBuildSignDialog = MutableStateFlow(false)
+    val showBuildSignDialog: StateFlow<Boolean> = _showBuildSignDialog.asStateFlow()
+
+    private val _showKeystoreDialog = MutableStateFlow(false)
+    val showKeystoreDialog: StateFlow<Boolean> = _showKeystoreDialog.asStateFlow()
+
+    private val _buildResult = MutableStateFlow<BuildResult?>(null)
+    val buildResult: StateFlow<BuildResult?> = _buildResult.asStateFlow()
+
+    private val _activeKeystore = MutableStateFlow<KeystoreConfig?>(KeystoreManager.getActiveKeystore())
+    val activeKeystore: StateFlow<KeystoreConfig?> = _activeKeystore.asStateFlow()
 
     private val _targetFolderPath = MutableStateFlow<String?>(null)
 
@@ -93,7 +106,6 @@ class IdeViewModel : ViewModel() {
         if (node.fileId != null) {
             updatedFiles.remove(node.fileId)
         } else {
-            // Delete folder path
             val keysToRemove = updatedFiles.filter { it.value.relativePath.startsWith(node.relativePath) }.keys
             keysToRemove.forEach { updatedFiles.remove(it) }
         }
@@ -124,6 +136,24 @@ class IdeViewModel : ViewModel() {
                 }
             )
         }
+    }
+
+    fun triggerBuildAndSign(target: BuildTarget, keystore: KeystoreConfig?) {
+        closeBuildSignDialog()
+        viewModelScope.launch {
+            val result = KeystoreManager.compileAndSignBinary(_project.value, target, keystore)
+            _buildResult.value = result
+        }
+    }
+
+    fun createKeystore(alias: String, storePass: String, keyPass: String, validityYears: Int, name: String, org: String) {
+        val ks = KeystoreManager.createKeystore(alias, storePass, keyPass, validityYears, name, org)
+        _activeKeystore.value = ks
+        closeKeystoreDialog()
+    }
+
+    fun closeBuildResultDialog() {
+        _buildResult.value = null
     }
 
     fun resumeDebugger() {
@@ -158,6 +188,12 @@ class IdeViewModel : ViewModel() {
         _targetFolderPath.value = null
         _showNewFileDialog.value = false
     }
+
+    fun openBuildSignDialog() { _showBuildSignDialog.value = true }
+    fun closeBuildSignDialog() { _showBuildSignDialog.value = false }
+
+    fun openKeystoreDialog() { _showKeystoreDialog.value = true }
+    fun closeKeystoreDialog() { _showKeystoreDialog.value = false }
 
     fun openSecurityDialog() { _showSecurityDialog.value = true }
     fun closeSecurityDialog() { _showSecurityDialog.value = false }
