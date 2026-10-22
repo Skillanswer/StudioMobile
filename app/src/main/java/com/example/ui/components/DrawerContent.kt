@@ -23,6 +23,11 @@ import com.example.ui.theme.*
 @Composable
 fun DrawerContent(
     project: Project,
+    projects: List<Project>,
+    onProjectSelect: (String) -> Unit,
+    onRenameProjectClick: (Project) -> Unit,
+    onCloneProjectClick: (Project) -> Unit,
+    onDeleteProjectClick: (Project) -> Unit,
     treeNodes: List<FileTreeNode>,
     onFileSelect: (String) -> Unit,
     onFolderToggle: (String) -> Unit,
@@ -37,6 +42,8 @@ fun DrawerContent(
     onSecurityReportClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isWorkspacesExpanded by remember { mutableStateOf(false) }
+
     Surface(
         modifier = modifier
             .fillMaxHeight()
@@ -62,9 +69,9 @@ fun DrawerContent(
                     modifier = Modifier.size(28.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Android Studio",
+                        text = "StudioMobile",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -79,7 +86,7 @@ fun DrawerContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Action Buttons Row: New File, New Project, Build & Sign, Search, Security Audit
+            // Action Buttons Row: New File, New Project, Build & Sign, Security Audit
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -129,26 +136,168 @@ fun DrawerContent(
                 }
             }
 
-            HorizontalDivider(color = IdeBorder, modifier = Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(color = IdeBorder, modifier = Modifier.padding(vertical = 10.dp))
 
-            // Project Files Tree Header
-            Text(
-                text = "PROJECT STRUCTURE",
-                style = MaterialTheme.typography.labelSmall,
-                color = IdeComment,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Collapsible File Tree View
-            Box(
+            // Scrollable Content: Workspaces Selector & File Tree
+            Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
+                // Section: Projects & Workspaces Accordion
+                Surface(
+                    onClick = { isWorkspacesExpanded = !isWorkspacesExpanded },
+                    shape = RoundedCornerShape(6.dp),
+                    color = IdeSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.FolderSpecial,
+                                contentDescription = null,
+                                tint = IdePrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "PROJECT WORKSPACES (${projects.size})",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Icon(
+                            imageVector = if (isWorkspacesExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = "Toggle Workspaces",
+                            tint = IdeComment,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                if (isWorkspacesExpanded) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
+                    ) {
+                        projects.forEach { p ->
+                            val isActive = p.id == project.id
+                            Surface(
+                                onClick = { onProjectSelect(p.id) },
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (isActive) IdePrimary.copy(alpha = 0.2f) else IdeBackground,
+                                border = if (isActive) androidx.compose.foundation.BorderStroke(1.dp, IdePrimary) else null,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 3.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = if (isActive) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                        contentDescription = null,
+                                        tint = if (isActive) IdeRunGreen else IdeComment,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = p.name,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (isActive) Color.White else IdeComment,
+                                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                                            fontSize = 12.sp
+                                        )
+                                        Text(
+                                            text = p.templateType.displayName,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = TokenKeyword,
+                                            fontSize = 9.sp
+                                        )
+                                    }
+
+                                    // Action icons for each project: Clone, Rename, Delete
+                                    IconButton(
+                                        onClick = { onCloneProjectClick(p) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ContentCopy,
+                                            contentDescription = "Clone Project",
+                                            tint = IdeComment,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { onRenameProjectClick(p) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Rename Project",
+                                            tint = TokenFunction,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                    if (projects.size > 1) {
+                                        IconButton(
+                                            onClick = { onDeleteProjectClick(p) },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "Delete Project",
+                                                tint = IdeDebugRed,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Add Project Button inside workspace list
+                        TextButton(
+                            onClick = onNewProjectClick,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 2.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = IdeRunGreen, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("+ Create New Workspace", fontSize = 11.sp, color = IdeRunGreen)
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = IdeBorder, modifier = Modifier.padding(vertical = 10.dp))
+
+                // Project Files Tree Header
+                Text(
+                    text = "PROJECT STRUCTURE",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = IdeComment,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Collapsible File Tree View
                 CollapsibleFileTree(
                     nodes = treeNodes,
                     activeFileId = project.activeFileId,
@@ -163,14 +312,16 @@ fun DrawerContent(
                 )
             }
 
-            HorizontalDivider(color = IdeBorder, modifier = Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(color = IdeBorder, modifier = Modifier.padding(vertical = 10.dp))
 
             // Build & Sign Quick Launch Bar
             Surface(
                 onClick = onBuildSignClick,
                 shape = RoundedCornerShape(8.dp),
                 color = IdePrimary.copy(alpha = 0.2f),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
             ) {
                 Row(
                     modifier = Modifier.padding(10.dp),
@@ -189,7 +340,7 @@ fun DrawerContent(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
-                    modifier = Modifier.padding(12.dp),
+                    modifier = Modifier.padding(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(

@@ -1,4 +1,4 @@
-name: Build Android APK and AAB
+name: Build and Release Android APK
 
 on:
   push:
@@ -7,20 +7,30 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
+    name: Build & Publish Release
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
 
       - name: Prepare Environment File
         run: |
@@ -38,18 +48,61 @@ jobs:
         run: |
           gradle assembleDebug --no-daemon --stacktrace
 
-      - name: Build Release App Bundle (AAB)
+      - name: Build App Bundle (AAB)
         run: |
           gradle bundleDebug --no-daemon --stacktrace
+
+      - name: Prepare Release Artifacts
+        run: |
+          mkdir -p release-artifacts
+          cp app/build/outputs/apk/debug/app-debug.apk release-artifacts/StudioMobile-v1.0.${{ github.run_number }}.apk
+          cp app/build/outputs/apk/debug/app-debug.apk release-artifacts/StudioMobile-latest.apk
+          cp app/build/outputs/bundle/debug/app-debug.aab release-artifacts/StudioMobile-v1.0.${{ github.run_number }}.aab
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Android-Studio-Mobile-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: StudioMobile-APK
+          path: release-artifacts/StudioMobile-latest.apk
 
       - name: Upload AAB Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Android-Studio-Mobile-AAB
-          path: app/build/outputs/bundle/debug/app-debug.aab
+          name: StudioMobile-AAB
+          path: release-artifacts/StudioMobile-v1.0.${{ github.run_number }}.aab
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: StudioMobile v1.0.${{ github.run_number }}
+          body: |
+            ## StudioMobile Automated Release
+
+            Automated build for commit [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}).
+
+            ### Commit Details
+            - **Author:** ${{ github.actor }}
+            - **Commit Message:** ${{ github.event.head_commit.message }}
+            - **Branch:** `${{ github.ref_name }}`
+            - **Build Run:** #${{ github.run_number }}
+
+            ### Downloads
+            - **[StudioMobile-v1.0.${{ github.run_number }}.apk](${{ github.server_url }}/${{ github.repository }}/releases/download/v1.0.${{ github.run_number }}/StudioMobile-v1.0.${{ github.run_number }}.apk)** — Installable Android APK
+            - **[StudioMobile-latest.apk](${{ github.server_url }}/${{ github.repository }}/releases/download/v1.0.${{ github.run_number }}/StudioMobile-latest.apk)** — Latest Android APK
+            - **StudioMobile-v1.0.${{ github.run_number }}.aab** — Android App Bundle
+
+            ### Installation Instructions
+            1. Download the `.apk` file directly on your Android device or transfer via USB.
+            2. Open the file and allow **Install Unknown Apps** for your browser/file manager if prompted.
+            3. Enjoy coding with StudioMobile on your phone or tablet!
+          files: |
+            release-artifacts/StudioMobile-v1.0.${{ github.run_number }}.apk
+            release-artifacts/StudioMobile-latest.apk
+            release-artifacts/StudioMobile-v1.0.${{ github.run_number }}.aab
+          draft: false
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

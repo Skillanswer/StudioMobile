@@ -1,6 +1,7 @@
 package com.example.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -17,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.interpreter.ProfilerEngine
 import com.example.ui.components.*
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
@@ -27,6 +29,7 @@ fun MainIdeScreen(
     viewModel: IdeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val project by viewModel.project.collectAsStateWithLifecycle()
+    val projects by viewModel.projects.collectAsStateWithLifecycle()
     val treeNodes by viewModel.treeNodes.collectAsStateWithLifecycle()
     val debuggerState by viewModel.debuggerState.collectAsStateWithLifecycle()
     val logcatLogs by viewModel.logcatLogs.collectAsStateWithLifecycle()
@@ -39,6 +42,15 @@ fun MainIdeScreen(
     val buildResult by viewModel.buildResult.collectAsStateWithLifecycle()
     val activeKeystore by viewModel.activeKeystore.collectAsStateWithLifecycle()
     val showSecurityDialog by viewModel.showSecurityDialog.collectAsStateWithLifecycle()
+
+    // Multi-project dialogs
+    val projectToRename by viewModel.projectToRename.collectAsStateWithLifecycle()
+    val projectToClone by viewModel.projectToClone.collectAsStateWithLifecycle()
+    val projectToDelete by viewModel.projectToDelete.collectAsStateWithLifecycle()
+
+    var consoleOverrideTab by remember { mutableStateOf<BottomTab?>(null) }
+    var isProjectDropdownOpen by remember { mutableStateOf(false) }
+    val profilerMetrics = remember { ProfilerEngine.getLiveMetrics() }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -53,6 +65,14 @@ fun MainIdeScreen(
             ) {
                 DrawerContent(
                     project = project,
+                    projects = projects,
+                    onProjectSelect = { projectId ->
+                        viewModel.switchProject(projectId)
+                        scope.launch { drawerState.close() }
+                    },
+                    onRenameProjectClick = { p -> viewModel.openRenameDialog(p) },
+                    onCloneProjectClick = { p -> viewModel.openCloneDialog(p) },
+                    onDeleteProjectClick = { p -> viewModel.openDeleteDialog(p) },
                     treeNodes = treeNodes,
                     onFileSelect = { fileId ->
                         viewModel.selectFile(fileId)
@@ -92,18 +112,135 @@ fun MainIdeScreen(
                 if (!isFocusMode) {
                     TopAppBar(
                         title = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = project.name,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                if (activeFile != null) {
+                            Box {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clickable { isProjectDropdownOpen = true }
+                                        .padding(vertical = 4.dp, horizontal = 2.dp)
+                                        .testTag("project_selector_header")
+                                ) {
                                     Text(
-                                        text = " / ${activeFile.name}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = IdeComment
+                                        text = project.name,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = "Select Project",
+                                        tint = IdePrimary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    // Git Branch Badge
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = IdeSurfaceVariant
+                                    ) {
+                                        Text(
+                                            text = "git: main",
+                                            fontSize = 9.sp,
+                                            color = TokenKeyword,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+
+                                // Project Selector Dropdown Menu
+                                DropdownMenu(
+                                    expanded = isProjectDropdownOpen,
+                                    onDismissRequest = { isProjectDropdownOpen = false },
+                                    modifier = Modifier
+                                        .background(IdeSurface)
+                                        .widthIn(min = 240.dp)
+                                ) {
+                                    Text(
+                                        text = "SWITCH PROJECT WORKSPACE",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = IdeComment,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                    )
+
+                                    HorizontalDivider(color = IdeBorder)
+
+                                    projects.forEach { p ->
+                                        val isActive = p.id == project.id
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (isActive) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                                        contentDescription = null,
+                                                        tint = if (isActive) IdeRunGreen else IdeComment,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(
+                                                            text = p.name,
+                                                            color = if (isActive) Color.White else IdeComment,
+                                                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                                                            fontSize = 13.sp
+                                                        )
+                                                        Text(
+                                                            text = p.templateType.displayName,
+                                                            color = TokenKeyword,
+                                                            fontSize = 10.sp
+                                                        )
+                                                    }
+                                                }
+                                            },
+                                            onClick = {
+                                                viewModel.switchProject(p.id)
+                                                isProjectDropdownOpen = false
+                                            }
+                                        )
+                                    }
+
+                                    HorizontalDivider(color = IdeBorder)
+
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Add,
+                                                    contentDescription = null,
+                                                    tint = IdeRunGreen,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("+ Create New Project", color = IdeRunGreen, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                            }
+                                        },
+                                        onClick = {
+                                            isProjectDropdownOpen = false
+                                            viewModel.openNewProjectDialog()
+                                        }
+                                    )
+
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ContentCopy,
+                                                    contentDescription = null,
+                                                    tint = IdePrimary,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("Clone Current Project", color = IdePrimary, fontSize = 12.sp)
+                                            }
+                                        },
+                                        onClick = {
+                                            isProjectDropdownOpen = false
+                                            viewModel.openCloneDialog(project)
+                                        }
                                     )
                                 }
                             }
@@ -117,19 +254,27 @@ fun MainIdeScreen(
                             }
                         },
                         actions = {
+                            // ARM SoC Metric Pill
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = IdePrimary.copy(alpha = 0.2f),
+                                modifier = Modifier.padding(end = 4.dp)
+                            ) {
+                                Text(
+                                    text = "${profilerMetrics.ramUsageMb.toInt()}MB | 60 FPS",
+                                    fontSize = 10.sp,
+                                    color = IdeRunGreen,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+
                             // Run Action
                             IconButton(
                                 onClick = { viewModel.runProject() },
                                 modifier = Modifier.testTag("run_app_btn")
                             ) {
                                 Icon(Icons.Default.PlayArrow, contentDescription = "Run App", tint = IdeRunGreen)
-                            }
-                            // Debug Action
-                            IconButton(
-                                onClick = { viewModel.runProject() },
-                                modifier = Modifier.testTag("debug_app_btn")
-                            ) {
-                                Icon(Icons.Default.BugReport, contentDescription = "Debug App", tint = IdeDebugRed)
                             }
                             // Build & Sign Action
                             IconButton(
@@ -161,7 +306,7 @@ fun MainIdeScreen(
                             onFormatClick = { viewModel.formatActiveCode() }
                         )
 
-                        // Resizable Bottom Sheet (Logcat & Debugger)
+                        // Resizable Bottom Sheet (Logcat, Shell, Profiler & Debugger)
                         BottomConsoleSheet(
                             project = project,
                             debuggerState = debuggerState,
@@ -169,9 +314,22 @@ fun MainIdeScreen(
                             onClearLogs = { viewModel.clearLogs() },
                             onResumeDebugger = { viewModel.resumeDebugger() },
                             onStepOver = { viewModel.stepOverDebugger() },
-                            onStopDebugger = { viewModel.stopDebugger() }
+                            onStopDebugger = { viewModel.stopDebugger() },
+                            activeTabOverride = consoleOverrideTab
                         )
                     }
+                }
+            },
+            floatingActionButton = {
+                if (!isFocusMode) {
+                    FloatingSpeedDialWheel(
+                        onRunClick = { viewModel.runProject() },
+                        onDebugClick = { viewModel.runProject() },
+                        onBuildSignClick = { viewModel.openBuildSignDialog() },
+                        onTerminalClick = { consoleOverrideTab = BottomTab.TERMINAL },
+                        onProfilerClick = { consoleOverrideTab = BottomTab.PROFILER },
+                        onSearchClick = { viewModel.openSecurityDialog() }
+                    )
                 }
             },
             containerColor = IdeBackground
@@ -267,6 +425,30 @@ fun MainIdeScreen(
         NewProjectDialog(
             onDismiss = { viewModel.closeNewProjectDialog() },
             onCreate = { name, pkg, template -> viewModel.createProject(name, pkg, template) }
+        )
+    }
+
+    projectToRename?.let { p ->
+        RenameProjectDialog(
+            project = p,
+            onDismiss = { viewModel.closeRenameDialog() },
+            onRename = { newName -> viewModel.renameProject(p.id, newName) }
+        )
+    }
+
+    projectToClone?.let { p ->
+        CloneProjectDialog(
+            project = p,
+            onDismiss = { viewModel.closeCloneDialog() },
+            onClone = { clonedName -> viewModel.cloneProject(p.id, clonedName) }
+        )
+    }
+
+    projectToDelete?.let { p ->
+        DeleteProjectConfirmDialog(
+            project = p,
+            onDismiss = { viewModel.closeDeleteDialog() },
+            onConfirmDelete = { viewModel.deleteProject(p.id) }
         )
     }
 

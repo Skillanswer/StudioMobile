@@ -19,6 +19,7 @@ import com.example.interpreter.KeystoreManager
 import com.example.model.BuildResult
 import com.example.model.BuildTarget
 import com.example.model.KeystoreConfig
+import com.example.model.Project
 import com.example.model.TemplateType
 import com.example.ui.theme.*
 
@@ -93,6 +94,117 @@ fun NewProjectDialog(
                 modifier = Modifier.testTag("confirm_create_project_btn")
             ) {
                 Text("Create Project")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = IdeComment) }
+        },
+        containerColor = IdeSurface
+    )
+}
+
+@Composable
+fun RenameProjectDialog(
+    project: Project,
+    onDismiss: () -> Unit,
+    onRename: (newName: String) -> Unit
+) {
+    var name by remember { mutableStateOf(project.name) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename Project", color = Color.White) },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Project Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isNotBlank()) onRename(name)
+                }
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = IdeComment) }
+        },
+        containerColor = IdeSurface
+    )
+}
+
+@Composable
+fun CloneProjectDialog(
+    project: Project,
+    onDismiss: () -> Unit,
+    onClone: (clonedName: String) -> Unit
+) {
+    var name by remember { mutableStateOf("${project.name}_Copy") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Clone Project Workspace", color = Color.White) },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Create an exact duplicate of '${project.name}' with all files preserved:",
+                    fontSize = 12.sp,
+                    color = IdeComment
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("New Cloned Project Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isNotBlank()) onClone(name)
+                }
+            ) {
+                Text("Clone")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = IdeComment) }
+        },
+        containerColor = IdeSurface
+    )
+}
+
+@Composable
+fun DeleteProjectConfirmDialog(
+    project: Project,
+    onDismiss: () -> Unit,
+    onConfirmDelete: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete Project?", color = IdeDebugRed) },
+        text = {
+            Text(
+                text = "Are you sure you want to delete '${project.name}'? All files in this project workspace will be permanently removed.",
+                fontSize = 13.sp,
+                color = TokenIdentifier
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirmDelete,
+                colors = ButtonDefaults.buttonColors(containerColor = IdeDebugRed)
+            ) {
+                Text("Delete")
             }
         },
         dismissButton = {
@@ -251,7 +363,7 @@ fun KeystoreManagerDialog(
     var storePass by remember { mutableStateOf("storepass123") }
     var keyPass by remember { mutableStateOf("keypass123") }
     var validity by remember { mutableStateOf("25") }
-    var commonName by remember { mutableStateOf("Android Studio Mobile") }
+    var commonName by remember { mutableStateOf("StudioMobile") }
     var organization by remember { mutableStateOf("Mobile App Developer") }
 
     AlertDialog(
@@ -370,7 +482,7 @@ fun SecurityReportDialog(
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Android Studio Mobile strictly protects user data and system boundaries:",
+                    text = "StudioMobile strictly protects user data and system boundaries:",
                     color = TokenIdentifier,
                     fontSize = 12.sp
                 )

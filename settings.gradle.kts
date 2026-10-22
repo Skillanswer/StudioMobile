@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Android Studio Mobile"
+rootProject.name = "StudioMobile"
 
 include(":app")

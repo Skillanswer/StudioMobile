@@ -23,7 +23,7 @@ private val IdeDarkColorScheme = darkColorScheme(
 )
 
 @Composable
-fun AndroidStudioMobileTheme(
+fun StudioMobileTheme(
     content: @Composable () -> Unit
 ) {
     MaterialTheme(
@@ -32,3 +32,7 @@ fun AndroidStudioMobileTheme(
         content = content
     )
 }
+
+// Backwards-compatible alias
+@Composable
+fun AndroidStudioMobileTheme(content: @Composable () -> Unit) = StudioMobileTheme(content)

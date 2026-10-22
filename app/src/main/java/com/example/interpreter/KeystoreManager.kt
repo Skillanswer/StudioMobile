@@ -67,7 +67,7 @@ object KeystoreManager {
             BuildTarget.SIGNED_RELEASE_AAB -> "${cleanName}-release-signed.${ext}"
         }
 
-        val outputDir = "/sdcard/Download/AndroidStudioMobile/builds"
+        val outputDir = "/sdcard/Download/StudioMobile/builds"
         val fullPath = "$outputDir/$fileName"
 
         val signature = generateSha256Fingerprint("${project.packageName}:${effectiveKeystore.alias}:${timeStr}")

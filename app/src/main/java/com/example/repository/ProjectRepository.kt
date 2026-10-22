@@ -27,46 +27,65 @@ class ProjectRepository {
             it.name == "MainActivity.kt" || it.name == "Main.kt" || it.name == "MainActivity.java" || it.name == "GameActivity.kt"
         }
 
+        // Collect all directory paths to pre-expand them
+        val allExpandedDirs = mutableSetOf<String>()
+        filesMap.values.forEach { file ->
+            val parts = file.relativePath.split('/')
+            var currentPath = ""
+            for (i in 0 until parts.size - 1) {
+                currentPath = if (currentPath.isEmpty()) parts[i] else "$currentPath/${parts[i]}"
+                allExpandedDirs.add(currentPath)
+            }
+        }
+
         return Project(
             id = projectId,
             name = name,
             packageName = packageName,
             templateType = templateType,
             files = filesMap,
-            activeFileId = mainFile?.id ?: filesMap.keys.firstOrNull()
+            activeFileId = mainFile?.id ?: filesMap.keys.firstOrNull(),
+            expandedFolderPaths = allExpandedDirs
         )
     }
 
     fun buildTreeNodes(project: Project): List<FileTreeNode> {
-        val rootNodes = mutableListOf<FileTreeNode>()
-        val pathMap = mutableMapOf<String, MutableList<ProjectFile>>()
+        val allDirectories = mutableSetOf<String>()
+        val filesByParent = mutableMapOf<String, MutableList<ProjectFile>>()
 
-        // Group files by directory segments
+        // Extract all directory paths and group files by parent directory
         project.files.values.forEach { file ->
             val parts = file.relativePath.split('/')
             val parentPath = if (parts.size > 1) parts.dropLast(1).joinToString("/") else ""
-            pathMap.getOrPut(parentPath) { mutableListOf() }.add(file)
+            filesByParent.getOrPut(parentPath) { mutableListOf() }.add(file)
+
+            // Register intermediate directories
+            var pathAcc = ""
+            for (i in 0 until parts.size - 1) {
+                pathAcc = if (pathAcc.isEmpty()) parts[i] else "$pathAcc/${parts[i]}"
+                allDirectories.add(pathAcc)
+            }
         }
 
-        // Build folder structure
-        fun buildDirectory(currentPath: String, depth: Int): List<FileTreeNode> {
-            val nodes = mutableListOf<FileTreeNode>()
+        // Helper to recursively build tree nodes for a directory
+        fun buildDirectory(parentDir: String, depth: Int): List<FileTreeNode> {
+            val result = mutableListOf<FileTreeNode>()
 
-            // Get subdirectories
-            val subDirs = pathMap.keys.filter { path ->
-                if (currentPath.isEmpty()) {
-                    path.isNotEmpty() && !path.contains('/')
+            // Find child directories whose parent is parentDir
+            val childDirs = allDirectories.filter { dir ->
+                if (parentDir.isEmpty()) {
+                    !dir.contains('/')
                 } else {
-                    path.startsWith("$currentPath/") && path.substring(currentPath.length + 1).none { it == '/' }
+                    dir.startsWith("$parentDir/") && !dir.substring(parentDir.length + 1).contains('/')
                 }
             }.sorted()
 
-            subDirs.forEach { dirPath ->
+            childDirs.forEach { dirPath ->
                 val dirName = dirPath.split('/').last()
                 val isExpanded = project.expandedFolderPaths.contains(dirPath)
                 val children = if (isExpanded) buildDirectory(dirPath, depth + 1) else emptyList()
 
-                nodes.add(
+                result.add(
                     FileTreeNode(
                         id = "dir_$dirPath",
                         name = dirName,
@@ -79,10 +98,10 @@ class ProjectRepository {
                 )
             }
 
-            // Get direct child files
-            val filesInDir = pathMap[currentPath] ?: emptyList()
-            filesInDir.sortedBy { it.name }.forEach { file ->
-                nodes.add(
+            // Find child files whose parent is parentDir
+            val childFiles = filesByParent[parentDir] ?: emptyList()
+            childFiles.sortedBy { it.name }.forEach { file ->
+                result.add(
                     FileTreeNode(
                         id = file.id,
                         name = file.name,
@@ -96,7 +115,7 @@ class ProjectRepository {
                 )
             }
 
-            return nodes
+            return result
         }
 
         return buildDirectory("", 0)
@@ -121,7 +140,7 @@ class ProjectRepository {
 
                 class MainActivity : ComponentActivity() {
                     override fun onCreate() {
-                        println("MainActivity initialized on Android Studio Mobile")
+                        println("MainActivity initialized on StudioMobile")
                     }
                 }
 
@@ -229,8 +248,27 @@ class ProjectRepository {
             """.trimIndent()
         )
 
+        val f3 = ProjectFile(
+            id = UUID.randomUUID().toString(),
+            name = "build.gradle.kts",
+            relativePath = "app/build.gradle.kts",
+            extension = "kts",
+            content = """
+                plugins {
+                    alias(libs.plugins.android.application)
+                    alias(libs.plugins.kotlin.compose)
+                }
+
+                android {
+                    namespace = "$pkg"
+                    compileSdk = 36
+                }
+            """.trimIndent()
+        )
+
         files[f1.id] = f1
         files[f2.id] = f2
+        files[f3.id] = f3
     }
 
     private fun createMvvmArchitectureFiles(projectId: String, pkg: String, files: MutableMap<String, ProjectFile>) {

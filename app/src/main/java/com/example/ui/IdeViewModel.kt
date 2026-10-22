@@ -10,15 +10,31 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 class IdeViewModel : ViewModel() {
 
     private val repository = ProjectRepository()
     private val astEngine = AstEngine()
 
-    private val _project = MutableStateFlow<Project>(
-        repository.createProjectFromTemplate("AndroidStudioMobileDemo", "com.aistudio.mobile.ide", TemplateType.FULL_STACK_COMPOSE)
+    private val initialProject = repository.createProjectFromTemplate(
+        "StudioMobileDemo",
+        "com.aistudio.mobile.ide",
+        TemplateType.FULL_STACK_COMPOSE
     )
+    private val secondaryProject = repository.createProjectFromTemplate(
+        "GameEngineDemo",
+        "com.aistudio.gameengine",
+        TemplateType.GAME_CANVAS
+    )
+
+    private val _projects = MutableStateFlow<List<Project>>(listOf(initialProject, secondaryProject))
+    val projects: StateFlow<List<Project>> = _projects.asStateFlow()
+
+    private val _activeProjectId = MutableStateFlow<String>(initialProject.id)
+    val activeProjectId: StateFlow<String> = _activeProjectId.asStateFlow()
+
+    private val _project = MutableStateFlow<Project>(initialProject)
     val project: StateFlow<Project> = _project.asStateFlow()
 
     private val _treeNodes = MutableStateFlow<List<FileTreeNode>>(emptyList())
@@ -56,6 +72,16 @@ class IdeViewModel : ViewModel() {
     private val _showSecurityDialog = MutableStateFlow(false)
     val showSecurityDialog: StateFlow<Boolean> = _showSecurityDialog.asStateFlow()
 
+    // Multi-project dialog states
+    private val _projectToRename = MutableStateFlow<Project?>(null)
+    val projectToRename: StateFlow<Project?> = _projectToRename.asStateFlow()
+
+    private val _projectToClone = MutableStateFlow<Project?>(null)
+    val projectToClone: StateFlow<Project?> = _projectToClone.asStateFlow()
+
+    private val _projectToDelete = MutableStateFlow<Project?>(null)
+    val projectToDelete: StateFlow<Project?> = _projectToDelete.asStateFlow()
+
     init {
         updateTreeNodes()
     }
@@ -64,8 +90,19 @@ class IdeViewModel : ViewModel() {
         _treeNodes.value = repository.buildTreeNodes(_project.value)
     }
 
+    fun switchProject(projectId: String) {
+        val target = _projects.value.find { it.id == projectId } ?: return
+        _activeProjectId.value = projectId
+        _project.value = target
+        _logcatLogs.value = emptyList()
+        _debuggerState.value = DebuggerState()
+        updateTreeNodes()
+    }
+
     fun selectFile(fileId: String) {
-        _project.value = _project.value.copy(activeFileId = fileId)
+        val updated = _project.value.copy(activeFileId = fileId)
+        _project.value = updated
+        updateProjectInList(updated)
     }
 
     fun toggleFolder(folderPath: String) {
@@ -75,7 +112,9 @@ class IdeViewModel : ViewModel() {
         } else {
             currentExpanded.add(folderPath)
         }
-        _project.value = _project.value.copy(expandedFolderPaths = currentExpanded)
+        val updated = _project.value.copy(expandedFolderPaths = currentExpanded)
+        _project.value = updated
+        updateProjectInList(updated)
         updateTreeNodes()
     }
 
@@ -83,7 +122,9 @@ class IdeViewModel : ViewModel() {
         val updatedFiles = _project.value.files.toMutableMap()
         val existing = updatedFiles[fileId] ?: return
         updatedFiles[fileId] = existing.copy(content = newContent, isModified = true)
-        _project.value = _project.value.copy(files = updatedFiles)
+        val updated = _project.value.copy(files = updatedFiles)
+        _project.value = updated
+        updateProjectInList(updated)
         updateTreeNodes()
     }
 
@@ -97,7 +138,9 @@ class IdeViewModel : ViewModel() {
             currentBreakpoints.add(line)
         }
         updatedFiles[fileId] = file.copy(breakpoints = currentBreakpoints)
-        _project.value = _project.value.copy(files = updatedFiles)
+        val updated = _project.value.copy(files = updatedFiles)
+        _project.value = updated
+        updateProjectInList(updated)
         updateTreeNodes()
     }
 
@@ -109,7 +152,9 @@ class IdeViewModel : ViewModel() {
             val keysToRemove = updatedFiles.filter { it.value.relativePath.startsWith(node.relativePath) }.keys
             keysToRemove.forEach { updatedFiles.remove(it) }
         }
-        _project.value = _project.value.copy(files = updatedFiles)
+        val updated = _project.value.copy(files = updatedFiles)
+        _project.value = updated
+        updateProjectInList(updated)
         updateTreeNodes()
     }
 
@@ -120,7 +165,9 @@ class IdeViewModel : ViewModel() {
         val parts = existing.relativePath.split('/')
         val newPath = parts.dropLast(1).joinToString("/") + "/" + newName
         updatedFiles[node.fileId] = existing.copy(name = newName, relativePath = newPath)
-        _project.value = _project.value.copy(files = updatedFiles)
+        val updated = _project.value.copy(files = updatedFiles)
+        _project.value = updated
+        updateProjectInList(updated)
         updateTreeNodes()
     }
 
@@ -198,12 +245,89 @@ class IdeViewModel : ViewModel() {
     fun openSecurityDialog() { _showSecurityDialog.value = true }
     fun closeSecurityDialog() { _showSecurityDialog.value = false }
 
+    // Project management dialog triggers
+    fun openRenameDialog(project: Project) { _projectToRename.value = project }
+    fun closeRenameDialog() { _projectToRename.value = null }
+
+    fun openCloneDialog(project: Project) { _projectToClone.value = project }
+    fun closeCloneDialog() { _projectToClone.value = null }
+
+    fun openDeleteDialog(project: Project) { _projectToDelete.value = project }
+    fun closeDeleteDialog() { _projectToDelete.value = null }
+
     fun createProject(name: String, packageName: String, template: TemplateType) {
-        _project.value = repository.createProjectFromTemplate(name, packageName, template)
+        val newProj = repository.createProjectFromTemplate(name, packageName, template)
+        _projects.value = listOf(newProj) + _projects.value
+        _activeProjectId.value = newProj.id
+        _project.value = newProj
         _logcatLogs.value = emptyList()
         _debuggerState.value = DebuggerState()
         updateTreeNodes()
         closeNewProjectDialog()
+    }
+
+    fun cloneProject(projectId: String, newName: String) {
+        val source = _projects.value.find { it.id == projectId } ?: return
+        val newId = UUID.randomUUID().toString()
+        val clonedFiles = source.files.mapValues { (_, file) ->
+            file.copy(id = UUID.randomUUID().toString(), isModified = false)
+        }
+        val clonedProj = source.copy(
+            id = newId,
+            name = newName,
+            files = clonedFiles,
+            activeFileId = clonedFiles.keys.firstOrNull()
+        )
+        _projects.value = listOf(clonedProj) + _projects.value
+        _activeProjectId.value = newId
+        _project.value = clonedProj
+        _logcatLogs.value = emptyList()
+        _debuggerState.value = DebuggerState()
+        updateTreeNodes()
+        closeCloneDialog()
+    }
+
+    fun renameProject(projectId: String, newName: String) {
+        val currentList = _projects.value.toMutableList()
+        val index = currentList.indexOfFirst { it.id == projectId }
+        if (index != -1) {
+            val updated = currentList[index].copy(name = newName)
+            currentList[index] = updated
+            _projects.value = currentList
+            if (_activeProjectId.value == projectId) {
+                _project.value = updated
+            }
+        }
+        closeRenameDialog()
+    }
+
+    fun deleteProject(projectId: String) {
+        if (_projects.value.size <= 1) {
+            closeDeleteDialog()
+            return // Keep at least one project
+        }
+        val currentList = _projects.value.toMutableList()
+        currentList.removeAll { it.id == projectId }
+        _projects.value = currentList
+
+        if (_activeProjectId.value == projectId) {
+            val nextProject = currentList.first()
+            _activeProjectId.value = nextProject.id
+            _project.value = nextProject
+            _logcatLogs.value = emptyList()
+            _debuggerState.value = DebuggerState()
+            updateTreeNodes()
+        }
+        closeDeleteDialog()
+    }
+
+    private fun updateProjectInList(updated: Project) {
+        val list = _projects.value.toMutableList()
+        val idx = list.indexOfFirst { it.id == updated.id }
+        if (idx != -1) {
+            list[idx] = updated
+            _projects.value = list
+        }
     }
 
     fun createFile(fileName: String, extension: String) {
@@ -225,7 +349,9 @@ class IdeViewModel : ViewModel() {
         )
         val updatedMap = _project.value.files.toMutableMap()
         updatedMap[id] = newFile
-        _project.value = _project.value.copy(files = updatedMap, activeFileId = id)
+        val updated = _project.value.copy(files = updatedMap, activeFileId = id)
+        _project.value = updated
+        updateProjectInList(updated)
         updateTreeNodes()
         closeNewFileDialog()
     }

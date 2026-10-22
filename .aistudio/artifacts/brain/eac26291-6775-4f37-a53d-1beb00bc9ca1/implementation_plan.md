@@ -1,80 +1,77 @@
-# Android Studio Mobile (ARM SoC & Low Resource Optimized)
+# Project Selector & Multi-Workspace Manager (Android Studio Mobile)
 
-A mobile-first Android Studio clone built natively with Jetpack Compose for Android smartphones. Designed for maximum efficiency on low-resource ARM SoC processors (ARMv7, ARM64, Snapdragon 400/600/700 series, MediaTek Dimensity/Helio) with lightweight RAM memory management, fast lazy syntax tokenization, battery-friendly rendering, and a clean minimalist mobile UI.
+Integrates a seamless multi-project workspace manager into Android Studio Mobile. Developers can instantly switch projects via an intuitive top app bar dropdown or a dedicated recent projects section in the slide-over drawer, with full support for project switching, cloning, renaming, deleting, and template instantiation.
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> The user requested explicit low-resource & ARM SoC processor optimization:
-> - **ARM SoC Architecture Optimization**: Zero native binary overhead (`.so`), pure Kotlin memory management tuned for ARM NEON/Vector instructions and low-end octa-core/quad-core CPUs.
-> - **Low Resource Memory Management**:
->   - **Lazy Line Tokenization**: Tokenizes only currently visible editor lines rather than entire 10,000-line files to keep RAM under 60 MB.
->   - **Memory Heap Conservation**: Garbage collection (GC) friendly data structures preventing frame drops or lag spikes.
->   - **Battery & Thermal Guard**: Pauses background execution when idle to prevent phone thermal throttling.
-> - **Essential Mobile IDE Toolset**:
->   - Live IntelliSense Code Autocomplete popup.
->   - Interactive Terminal Shell (`gradle assembleDebug`, `git status`, `ls`, `grep`).
->   - Real-time Performance Profiler (ARM CPU %, RAM Heap MB, FPS meter).
->   - Git Version Control & Branch Manager.
->   - APK / AAB Decompiler & Asset Inspector.
->   - Build & Sign APK / AAB with JKS Keystores.
+> The user confirmed the following choices during Phase 1 clarification:
+> - **Access Points**: Dropdown switcher embedded directly in the top app bar (tapping the project title) alongside a Recent Projects list in the side drawer.
+> - **Supported Operations**: Seamlessly switch active projects, clone existing projects, rename project metadata, and delete unwanted projects with confirmation safeguards.
+> - **Clean Mobile Aesthetics**: Uncluttered, touch-optimized dialogs and dropdown menus adhering to the dark minimalist IDE theme with 48dp+ touch targets.
 
 ---
 
 ## 1. Overview & Core Concept
 
-**Android Studio Mobile** delivers desktop-class mobile development capabilities while remaining blazing fast and smooth on budget and low-tier Android smartphones.
+Currently, Android Studio Mobile allows creating new projects, but managing multiple existing workspaces simultaneously requires a centralized Project Selector. This update elevates Android Studio Mobile into a multi-workspace IDE where users can maintain and switch between several projects (e.g., Compose apps, pure Kotlin libraries, 2D game experiments) with isolated file trees, active tabs, and debugger states.
 
-### Key Performance Pillars for ARM SoC
-1. **Low Memory Footprint (<60 MB RAM)**: Efficient data structures for AST parsing, token caching, and project trees ensure seamless multitasking without Android OS OOM kills.
-2. **ARM Vectorization & CPU Efficiency**: Lightweight regex tokenizer and AST interpreter optimized for ARM NEON SIMD execution without heavy native JNI dependencies.
-3. **Smooth 60 FPS Compose Rendering**: Sub-millisecond recompositions, lazy list layouts, and minimal re-draws for low-frequency mobile GPUs (Adreno, Mali).
+### Key Value Pillars
+1. **Top Bar Quick Switcher**: Tapping the project title in the top app bar opens an anchor dropdown displaying all projects, their template badges, and active status.
+2. **Drawer Workspace Explorer**: The side drawer features a "Projects & Workspaces" section showing recent projects, a "New Project" shortcut, and quick management triggers.
+3. **Comprehensive Project Lifecycle**:
+   - **Switch**: Instant switch of project files, active editor tab, and tree view.
+   - **Clone**: Duplicate a project with a new name and package namespace.
+   - **Rename**: In-place project renaming without file corruption.
+   - **Delete**: Safe removal of inactive projects with confirmation guard.
+4. **Persistent Multi-Project State**: Manages an in-memory & repository-backed list of active projects without extra resource overhead.
 
 ---
 
 ## 2. User Experience & Visual Design
 
-### Clean Ergonomics & ARM Resource Monitor
-- **Header Bar**: Project status pill (`✔ Ready` / `⚡ Building`), active file tab, Git branch indicator, and ARM SoC Resource Pill (`RAM: 42MB | CPU: 4%`).
-- **Floating Action Speed Dial Wheel**: Fast 1-tap access to Run, Debug, Build APK/AAB, Terminal, Profiler, and Search.
-- **Editor Canvas**: Monospace font with lazy-loaded line numbers, line highlight, and token coloring.
+### User Interaction Flows
+1. **Top App Bar Dropdown Flow**:
+   - The user taps the project title in the top bar (accompanied by a subtle `ExpandMore` chevron).
+   - An anchor dropdown displays available projects with template type chips (`Compose`, `MVVM`, `2D Game`, etc.) and a checkmark on the active project.
+   - Selecting a project smoothly updates the file tree, tabs, and editor.
+2. **Side Drawer Projects Section**:
+   - Below the header, a "Workspaces" accordion or list displays current projects with count badge.
+   - Each project item includes an overflow menu (`⋮`) offering **Clone**, **Rename**, and **Delete**.
+3. **Project Management Dialogs**:
+   - **Rename Dialog**: Text input with existing name pre-filled and validation.
+   - **Clone Dialog**: Clones all project files into a new project entity with custom name.
+   - **Delete Confirmation Dialog**: Prevents accidental deletion of the last project or active workspace.
 
 ---
 
-## 3. Technical Architecture & Component Structure
+## 3. Technical Architecture & Data Strategy
 
-### Architecture Diagram
+### System Architecture Diagram
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│             ARM SoC Optimized Android Studio Mobile IDE                │
+│                        Top App Bar & Header                            │
+│  [☰]  [📁 ProjectName ▼ (Dropdown Switcher)]    [RAM Pill] [▶] [📦] [⛶]│
+├────────────────────────────────────────────────────────────────────────┤
+│ Dropdown Menu:                                                         │
+│  - ✔ MyAwesomeApp (Compose)                                            │
+│  -   GameEngine2D (2D Game)          [+ New Project]                   │
+│  -   RestApiDemo (MVVM)              [⚙ Manage Projects]               │
 ├────────────────────────────────────────────────────────────────────────┤
 │ ┌──────────────────────────┐  ┌──────────────────────────────────────┐ │
-│ │ Slide-Over Drawer        │  │ Header Bar (ARM RAM / CPU Meter)     │ │
-│ │  - Collapsible File Tree │  ├──────────────────────────────────────┤ │
-│ │  - Resource Inspector    │  │ Code Editor View (Compose)           │ │
-│ │  - Git Manager           │  │  - Lazy Tokenizer (<60MB RAM)        │ │
-│ └──────────────────────────┘  │  - Floating Action Speed Dial Wheel  │ │
-│                               └──────────────────────────────────────┘ │
-├────────────────────────────────────────────────────────────────────────┤
-│ Resizable Bottom Sheet (Logcat / Terminal / Profiler / Decompiler)     │
-│  - Filterable Logcat Logs                                              │
-│  - Interactive Terminal Shell ($ gradle assembleDebug, git status)     │
-│  - ARM SoC Real-Time CPU & RAM Memory Heap Monitor                     │
-│  - APK/AAB Decompiler Structure                                        │
-│  - Gradle Dependency Analyzer                                          │
+│ │ Slide-Over Drawer        │  │ Active Code Editor (Compose)         │ │
+│ │  - Workspaces Manager    │  │  - Active File Tabs                  │ │
+│ │  - Collapsible File Tree │  │  - Syntax Highlighting               │ │
+│ └──────────────────────────┘  └──────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                       IDE Core Engine & Services                       │
-│ ┌────────────────────────┐ ┌───────────────────┐ ┌───────────────────┐ │
-│ │ Project Repository     │ │ Lazy CodeLexer &  │ │ AstEngine &       │ │
-│ │ & Git Manager          │ │ Autocomplete      │ │ Profiler Meter    │ │
-│ └────────────────────────┘ └───────────────────┘ └───────────────────┘ │
-│ ┌───────────────────────┐ ┌───────────────────┐ ┌───────────────────┐ │
-│ │ KeystoreManager       │ │ TerminalEngine    │ │ ApkDecompiler     │ │
-│ └───────────────────────┘ └───────────────────┘ └───────────────────┘ │
+│                         IdeViewModel & State                           │
+│  - projects: StateFlow<List<Project>>                                  │
+│  - activeProjectId: StateFlow<String>                                  │
+│  - switchProject(id) / cloneProject(id) / renameProject() / delete()   │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -82,17 +79,12 @@ A mobile-first Android Studio clone built natively with Jetpack Compose for Andr
 
 ## 4. Implementation Roadmap & Verification
 
-1. **ARM SoC Performance Engine (`ProfilerEngine.kt`)**:
-   - Real-time ARM CPU load %, RAM heap memory footprint, and rendering FPS monitor.
-2. **Lazy Tokenizer & Autocomplete (`AutocompleteEngine.kt`)**:
-   - Contextual IntelliSense suggestions with zero GC allocation overhead.
-3. **Terminal Shell Simulator (`TerminalEngine.kt`)**:
-   - Shell command runner (`gradle assembleDebug`, `git status`, `ls`, `grep`, `pwd`).
-4. **Git Branch & Version Control Manager**:
-   - Branch badge, commit dialog, and file diff viewer.
-5. **APK Decompiler & Dependency Analyzer**:
-   - Inspect APK zip structure and Gradle Version Catalog.
-6. **Floating Action Speed Dial Wheel**:
-   - Floating action wheel for instant touch access.
-7. **Verification**:
-   - Execute `compile_applet` to confirm zero build or runtime errors.
+1. **State & Model Enhancements**:
+   - Update `IdeViewModel` to hold `projects: StateFlow<List<Project>>` and `activeProjectId: StateFlow<String>`.
+   - Add methods: `switchProject(projectId)`, `cloneProject(projectId, newName)`, `renameProject(projectId, newName)`, `deleteProject(projectId)`.
+2. **UI Components**:
+   - Create `ProjectDropdownMenu` in the top app bar with template chips and active indicators.
+   - Update `DrawerContent` with a clean "Workspaces" section and project action buttons.
+   - Add `RenameProjectDialog` and `CloneProjectDialog` in `Dialogs.kt`.
+3. **Verification**:
+   - Run `compile_applet` to confirm clean compilation and zero regressions.

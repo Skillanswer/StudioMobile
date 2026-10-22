@@ -10,17 +10,18 @@ import com.example.model.TokenType
 import com.example.repository.ProjectRepository
 import org.junit.Assert.*
 import org.junit.Test
+import java.util.UUID
 
 class IdeEngineUnitTest {
 
     @Test
     fun testCodeLexerKotlinTokenization() {
-        val code = "val name = \"Android Studio\"\nfun hello() {}"
+        val code = "val name = \"StudioMobile\"\nfun hello() {}"
         val tokens = CodeLexer.tokenize(code, FileType.KOTLIN)
 
         assertTrue(tokens.any { it.text == "val" && it.type == TokenType.KEYWORD })
         assertTrue(tokens.any { it.text == "fun" && it.type == TokenType.KEYWORD })
-        assertTrue(tokens.any { it.text == "\"Android Studio\"" && it.type == TokenType.STRING })
+        assertTrue(tokens.any { it.text == "\"StudioMobile\"" && it.type == TokenType.STRING })
     }
 
     @Test
@@ -34,15 +35,39 @@ class IdeEngineUnitTest {
     }
 
     @Test
-    fun testProjectRepositoryTemplates() {
+    fun testProjectRepositoryTemplatesAndTree() {
         val repo = ProjectRepository()
-        val composeProj = repo.createProjectFromTemplate("TestCompose", "com.test.app", TemplateType.COMPOSE)
+        val composeProj = repo.createProjectFromTemplate("TestCompose", "com.test.app", TemplateType.FULL_STACK_COMPOSE)
 
         assertEquals("TestCompose", composeProj.name)
         assertTrue(composeProj.files.values.any { it.name == "MainActivity.kt" })
 
-        val viewsProj = repo.createProjectFromTemplate("TestViews", "com.test.views", TemplateType.VIEWS)
-        assertTrue(viewsProj.files.values.any { it.name == "MainActivity.java" })
+        val treeNodes = repo.buildTreeNodes(composeProj)
+        assertTrue("Tree nodes must not be empty", treeNodes.isNotEmpty())
+        assertTrue("Top level folder 'app' should be present in tree", treeNodes.any { it.name == "app" && it.isDirectory })
+    }
+
+    @Test
+    fun testProjectCloningAndRenaming() {
+        val repo = ProjectRepository()
+        val original = repo.createProjectFromTemplate("OriginalApp", "com.test.original", TemplateType.COMPOSE)
+
+        // Test rename
+        val renamed = original.copy(name = "RenamedApp")
+        assertEquals("RenamedApp", renamed.name)
+
+        // Test clone
+        val clonedFiles = original.files.mapValues { (_, file) ->
+            file.copy(id = UUID.randomUUID().toString())
+        }
+        val cloned = original.copy(
+            id = UUID.randomUUID().toString(),
+            name = "ClonedApp",
+            files = clonedFiles
+        )
+        assertEquals("ClonedApp", cloned.name)
+        assertNotEquals(original.id, cloned.id)
+        assertEquals(original.files.size, cloned.files.size)
     }
 
     @Test

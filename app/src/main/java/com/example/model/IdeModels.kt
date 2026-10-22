@@ -86,7 +86,7 @@ data class KeystoreConfig(
     val storePassword: String,
     val keyPassword: String,
     val validityYears: Int = 25,
-    val commonName: String = "Android Studio Mobile",
+    val commonName: String = "StudioMobile",
     val organization: String = "Mobile IDE Developer",
     val sha256Fingerprint: String = "SHA256: 48:9A:C3:82:19:FE:22:90:BB:11:00:1A:3C:D2:EE:90",
     val isCreated: Boolean = true
