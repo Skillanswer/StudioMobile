@@ -63,54 +63,11 @@ Optimized to run smoothly on budget ARM SoCs and devices with limited RAM, Studi
 
 Every push commit to the repository automatically triggers GitHub Actions to build the latest APK and publish an official GitHub Release.
 
-### Automated Release Artifacts
-You can always download the latest compiled builds from the **[Releases Tab](https://github.com/${{ github.repository }}/releases)**:
-- **`StudioMobile-latest.apk`**: Always points to the most recent successful build.
-- **`StudioMobile-v1.0.<build_number>.apk`**: Versioned release corresponding to specific commit updates.
-- **`StudioMobile-v1.0.<build_number>.aab`**: Android App Bundle.
 
 ### Installation
 1. Download the `.apk` on your Android device.
 2. If prompted, enable **Allow from this source** in Android Settings for your browser or file manager.
 3. Tap **Install** and launch StudioMobile!
-
----
-
-## 🏗️ Architecture
-
-StudioMobile is architected following Google's modern Android architecture recommendations:
-
-```
-app/src/main/java/com/example/
-├── MainActivity.kt                # Single activity host with Edge-to-Edge support
-├── interpreter/                   # On-device execution engines
-│   ├── AstEngine.kt               # Tokenizer, recursive-descent parser, & AST evaluator
-│   ├── AutocompleteEngine.kt      # Keyword, symbol, and context completion
-│   ├── KeystoreManager.kt         # Keystore reader & SHA fingerprint extractor
-│   ├── ProfilerEngine.kt          # Low-overhead CPU/Memory telemetry tracker
-│   ├── SecuritySandbox.kt         # Security validation for execution
-│   └── TerminalEngine.kt          # Virtual terminal shell command processor
-├── lexer/
-│   └── CodeLexer.kt               # Regex-free, high-speed syntax highlighter
-├── model/
-│   └── IdeModels.kt               # Data classes (Projects, Files, Diagnostics, Tabs)
-├── repository/
-│   └── ProjectRepository.kt       # Persistent workspace & file storage manager
-└── ui/
-    ├── IdeViewModel.kt            # Central MVI/MVVM StateFlow manager
-    ├── MainIdeScreen.kt           # Adaptive main layout & responsive scaffold
-    ├── components/
-    │   ├── BottomConsoleSheet.kt  # Logcat, Terminal, Profiler, and Preview sheet
-    │   ├── CodeEditorView.kt      # Line-numbered syntax editor with search/replace
-    │   ├── CollapsibleFileTree.kt # Multi-level expandable directory browser
-    │   ├── Dialogs.kt             # Project creation, rename, clone, and deletion dialogs
-    │   ├── DrawerContent.kt       # Navigation drawer with recent projects & tools
-    │   ├── FloatingSpeedDialWheel.kt # Low-profile circular action dial
-    │   └── QuickSymbolBar.kt      # One-tap symbol typing strip
-    └── theme/
-        ├── Color.kt               # Material 3 dark/light IDE color palette
-        └── Theme.kt               # Dynamic color scheme configuration
-```
 
 ---
 
@@ -150,16 +107,6 @@ gradle :app:testDebugUnitTest
 
 ---
 
-## ⚙️ Automated CI/CD Workflow
-
-The GitHub Actions workflow in `.github/workflows/build_apk.yml` executes on every commit:
-1. **Checks out** code and sets up **JDK 17** with Gradle caching.
-2. **Prepares environment** variables and verifies keystore configuration.
-3. **Builds** the Android Debug APK and App Bundle (AAB).
-4. **Publishes a GitHub Release** tagged `v1.0.<run_number>` using `softprops/action-gh-release@v2`.
-5. **Attaches downloadable APK files** directly to the release notes.
-
----
 
 ## 📄 License
 
