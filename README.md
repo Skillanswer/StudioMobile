@@ -163,4 +163,4 @@ The GitHub Actions workflow in `.github/workflows/build_apk.yml` executes on eve
 
 ## 📄 License
 
-StudioMobile is distributed under the [MIT License](LICENSE).
+StudioMobile is distributed under the [AGPL3](LICENSE).
